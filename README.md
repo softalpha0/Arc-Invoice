@@ -45,23 +45,6 @@ on-chain. No accounts, no intermediary holding funds, no processor cut.
    dashboard for accountants — once the core loop (create → share → get
    paid) has real usage.
 
-## Quickstart
-
-```bash
-# 1. Deploy the contract
-cd contracts
-npm install
-cp .env.example .env   # fill in PRIVATE_KEY (a funded Arc mainnet account)
-npx hardhat test
-npx hardhat run scripts/deploy.js --network arcMainnet
-
-# 2. Run the frontend
-cd ../frontend
-npm install
-cp .env.local.example .env.local   # paste the deployed contract address
-npm run dev
-```
-
 ## Network
 
 | | |
@@ -70,4 +53,3 @@ npm run dev
 | RPC | https://rpc.mainnet.arc.io |
 | Explorer | https://explorer.arc.io |
 
-Built for the [Arc Microgrants](https://arc.io) program.
