@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 function short(address: string) {
@@ -8,8 +9,14 @@ function short(address: string) {
 
 export function ConnectButton() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const { connect, connectors, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
+
+  // Whether an injected wallet exists can only be known in the browser, after
+  // mount — checking it during render would make the client's first paint
+  // disagree with the server-rendered HTML and break hydration.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   if (isConnected && address) {
     return (
@@ -24,14 +31,35 @@ export function ConnectButton() {
   }
 
   const injectedConnector = connectors.find((c) => c.id === "injected") ?? connectors[0];
+  const noWalletFound = mounted && !(window as { ethereum?: unknown }).ethereum;
+
+  if (noWalletFound) {
+    return (
+      <a
+        href="https://metamask.io/download"
+        target="_blank"
+        rel="noreferrer"
+        className="rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface"
+      >
+        Install a wallet
+      </a>
+    );
+  }
 
   return (
-    <button
-      onClick={() => injectedConnector && connect({ connector: injectedConnector })}
-      disabled={!injectedConnector || isPending}
-      className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
-    >
-      {isPending ? "Connecting…" : "Connect Wallet"}
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={() => injectedConnector && connect({ connector: injectedConnector })}
+        disabled={!injectedConnector || isPending}
+        className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
+      >
+        {isPending ? "Confirm in wallet…" : "Connect Wallet"}
+      </button>
+      {error && (
+        <p className="max-w-52 text-right text-xs text-danger">
+          {error.message.split("\n")[0]}
+        </p>
+      )}
+    </div>
   );
 }
