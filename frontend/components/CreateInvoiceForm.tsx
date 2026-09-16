@@ -2,20 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { parseUnits, isAddress, decodeEventLog, type Address } from "viem";
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { INVOICE_ESCROW_ADDRESS, TARGET_CHAIN_ID, invoiceEscrowAbi } from "@/lib/contract";
+import { shortErrorMessage } from "@/lib/errors";
 import { InvoiceShare } from "./InvoiceShare";
+import { NetworkGuard } from "./NetworkGuard";
 import Link from "next/link";
 
 export function CreateInvoiceForm() {
-  const { isConnected } = useAccount();
+  const { isConnected, chainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [payer, setPayer] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const { writeContract, data: hash, isPending, reset } = useWriteContract();
+  const { writeContract, data: hash, isPending, error: writeError, reset } = useWriteContract();
   const { data: receipt, isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const newInvoiceId = useMemo(() => {
@@ -32,7 +35,7 @@ export function CreateInvoiceForm() {
     return null;
   }, [receipt]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -55,6 +58,14 @@ export function CreateInvoiceForm() {
     if (payer && !isAddress(payer)) {
       setError("Payer must be a valid address, or left blank.");
       return;
+    }
+    if (chainId !== TARGET_CHAIN_ID) {
+      try {
+        await switchChainAsync({ chainId: TARGET_CHAIN_ID });
+      } catch (err) {
+        setError(shortErrorMessage(err) ?? "Switch your wallet to Arc to continue.");
+        return;
+      }
     }
     const dueDateSeconds = dueDate ? Math.floor(new Date(dueDate).getTime() / 1000) : 0;
 
@@ -124,15 +135,19 @@ export function CreateInvoiceForm() {
         />
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {(error || writeError) && (
+        <p className="text-sm text-danger">{error ?? shortErrorMessage(writeError)}</p>
+      )}
 
-      <button
-        type="submit"
-        disabled={isPending || isConfirming}
-        className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
-      >
-        {isPending ? "Confirm in wallet…" : isConfirming ? "Creating invoice…" : "Create invoice"}
-      </button>
+      <NetworkGuard>
+        <button
+          type="submit"
+          disabled={isPending || isConfirming}
+          className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
+        >
+          {isPending ? "Confirm in wallet…" : isConfirming ? "Creating invoice…" : "Create invoice"}
+        </button>
+      </NetworkGuard>
 
       {isSuccess && (
         <div className="animate-fade-up space-y-4 border-t border-border pt-4">

@@ -5,7 +5,9 @@ import { formatUnits } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { SiteHeader } from "@/components/SiteHeader";
 import { InvoiceShare } from "@/components/InvoiceShare";
+import { NetworkGuard } from "@/components/NetworkGuard";
 import { INVOICE_ESCROW_ADDRESS, TARGET_CHAIN_ID, invoiceEscrowAbi } from "@/lib/contract";
+import { shortErrorMessage } from "@/lib/errors";
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -99,15 +101,17 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 This invoice is restricted to a specific payer address.
               </p>
             ) : (
-              <button
-                onClick={pay}
-                disabled={isPending || isConfirming}
-                className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
-              >
-                {isPending ? "Confirm in wallet…" : isConfirming ? "Paying…" : `Pay ${formatUnits(invoice.amount, 18)} USDC`}
-              </button>
+              <NetworkGuard>
+                <button
+                  onClick={pay}
+                  disabled={isPending || isConfirming}
+                  className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50"
+                >
+                  {isPending ? "Confirm in wallet…" : isConfirming ? "Paying…" : `Pay ${formatUnits(invoice.amount, 18)} USDC`}
+                </button>
+              </NetworkGuard>
             )}
-            {writeError && <p className="mt-2 text-sm text-danger">{writeError.message}</p>}
+            {writeError && <p className="mt-2 text-sm text-danger">{shortErrorMessage(writeError)}</p>}
             {isSuccess && (
               <p className="mt-2 text-center text-sm text-success">
                 Payment confirmed.{" "}
